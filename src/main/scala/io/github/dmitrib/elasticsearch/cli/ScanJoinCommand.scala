@@ -35,7 +35,7 @@ object ScanJoinCommand extends ScanCommandParams with Runnable {
       .setTypes(kind)
       .setSearchType(SearchType.SCAN)
       .setScroll(new TimeValue(600000))
-      .setQuery(queryBuider)
+      .setQuery(queryBuilder)
       .setSize(hitsPerShard)
       .setTimeout(new TimeValue(requestTimeoutMins, TimeUnit.MINUTES))
 

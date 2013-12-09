@@ -15,7 +15,7 @@ trait ScanCommandParams extends {
   @Parameter(names = Array("--query"), description = "Search query in Lucene syntax")
   var query: String = _
 
-  def queryBuider = Option(query)
+  def queryBuilder = Option(query)
     .map(QueryBuilders.queryString)
     .getOrElse(QueryBuilders.matchAllQuery())
 
@@ -34,6 +34,12 @@ trait ScanCommandParams extends {
     description = "Number of retries for a failed scan request"
   )
   var retryMax = 3
+
+  @Parameter(
+    names = Array("--routing"),
+    description = "Param to calculate a shard to execute search"
+  )
+  var routing: String = _
 }
 
 @Parameters(commandDescription = "Read search resutls using scroll")
@@ -89,9 +95,13 @@ object ScanCommand extends ScanCommandParams with Runnable {
       .setTypes(kind)
       .setSearchType(SearchType.SCAN)
       .setScroll(new TimeValue(600000))
-      .setQuery(queryBuider)
+      .setQuery(queryBuilder)
       .setSize(hitsPerShard)
       .setTimeout(new TimeValue(requestTimeoutMins, TimeUnit.MINUTES))
+
+    Option(routing).foreach { (r) =>
+      reqBuilder.setRouting(r)
+    }
 
     ScanCommand.fields.asScala.foreach(reqBuilder.addField)
 
