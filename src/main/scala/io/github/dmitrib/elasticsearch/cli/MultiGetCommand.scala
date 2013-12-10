@@ -18,7 +18,7 @@ object MultiGetCommand extends Runnable {
   @Parameter(
     names = Array("-f", "--field"),
     description = "A field to retrieve, can be specified multiple times; if no fields is supplied the whole document will be returned")
-   var fields = new util.ArrayList[String]
+   var fields: util.List[String] = new util.ArrayList[String]
 
   @Parameter(
     names = Array("--file"),
