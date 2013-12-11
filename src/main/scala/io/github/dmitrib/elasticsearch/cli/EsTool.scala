@@ -71,7 +71,7 @@ object EsTool {
     generator.writeStartObject()
     generator.writeStringField("_id", hit.getId)
     val fields = hit.getFields.asScala
-    val source = fields.getOrElse("partial", hit.getSource)
+    val source = fields.get("partial").map(_.getValue[AnyRef]).getOrElse(hit.getSource)
     generator.writeObjectField("_source", source)
     val remainingFields = fields - "partial"
     generator.writeObjectField("fields", remainingFields.map((e) => (e._1, e._2.getValue[AnyRef])))
