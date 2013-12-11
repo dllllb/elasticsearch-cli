@@ -41,8 +41,8 @@ object SearchByInputCommand extends Runnable {
       fields.asScala.foreach(req.addField)
       val resp = req.execute().actionGet()
       resp.getHits.getHits.foreach((h) => println(hitToString(h)))
-
-      client.close()
     }
+
+    client.close()
   }
 }
