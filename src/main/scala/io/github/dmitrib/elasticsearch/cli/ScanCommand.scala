@@ -46,9 +46,19 @@ trait ScanCommandParams extends {
     description = "Shard number on which to execute search"
   )
   var shard: String = _
+
+  @Parameter(
+    names = Array("--exclude"),
+    description = "A wildcard pattern for fields to exclude from source, can be specified multiple times")
+  val excludeFields: util.List[String] = new util.ArrayList[String]
+
+  @Parameter(
+    names = Array("--include"),
+    description = "A wildcard pattern for fields to include in source, can be specified multiple times")
+  val includeFields: util.List[String] = new util.ArrayList[String]
 }
 
-@Parameters(commandDescription = "Read search resutls using scroll")
+@Parameters(commandDescription = "Read search results using scroll")
 object ScanCommand extends ScanCommandParams with Runnable {
   import EsTool._
 
@@ -111,6 +121,14 @@ object ScanCommand extends ScanCommandParams with Runnable {
 
     Option(shard) foreach { (s) =>
       reqBuilder.setPreference(s"_shards:$s")
+    }
+
+
+    if (!excludeFields.isEmpty || !includeFields.isEmpty) {
+      reqBuilder.addPartialField("partial",
+        ScanCommand.includeFields.asScala.toArray,
+        ScanCommand.excludeFields.asScala.toArray
+      )
     }
 
     ScanCommand.fields.asScala.foreach(reqBuilder.addField)

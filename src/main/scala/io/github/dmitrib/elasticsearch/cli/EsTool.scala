@@ -1,6 +1,6 @@
 package io.github.dmitrib.elasticsearch.cli
 
-import com.fasterxml.jackson.databind.{MappingJsonFactory, ObjectMapper}
+import com.fasterxml.jackson.databind.{SerializationFeature, MappingJsonFactory, ObjectMapper}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.elasticsearch.search.SearchHit
 import java.io.StringWriter
@@ -59,6 +59,8 @@ object EsTool {
 
   val mapper = new ObjectMapper
   mapper.registerModule(DefaultScalaModule)
+  mapper.configure(SerializationFeature.WRITE_EMPTY_JSON_ARRAYS, false)
+  mapper.configure(SerializationFeature.WRITE_NULL_MAP_VALUES, false)
 
   val jsonFactory = new MappingJsonFactory(mapper)
 
@@ -68,8 +70,11 @@ object EsTool {
 
     generator.writeStartObject()
     generator.writeStringField("_id", hit.getId)
-    generator.writeObjectField("_source", hit.getSource)
-    generator.writeObjectField("fields", hit.getFields.asScala.map((e) => (e._1, e._2.getValue[AnyRef])))
+    val fields = hit.getFields.asScala
+    val source = fields.getOrElse("partial", hit.getSource)
+    generator.writeObjectField("_source", source)
+    val remainingFields = fields - "partial"
+    generator.writeObjectField("fields", remainingFields.map((e) => (e._1, e._2.getValue[AnyRef])))
     generator.writeEndObject()
     generator.close()
     writer.toString
