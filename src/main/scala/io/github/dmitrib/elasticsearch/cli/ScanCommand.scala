@@ -1,6 +1,6 @@
 package io.github.dmitrib.elasticsearch.cli
 
-import com.beust.jcommander.{Parameters, Parameter}
+import com.beust.jcommander.{Parameter, Parameters}
 import java.util
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.action.search.{SearchRequestBuilder, SearchType}
@@ -40,6 +40,12 @@ trait ScanCommandParams extends {
     description = "Param to calculate a shard to execute search"
   )
   var routing: String = _
+
+  @Parameter(
+    names = Array("--shard"),
+    description = "Shard number on which to execute search"
+  )
+  var shard: String = _
 }
 
 @Parameters(commandDescription = "Read search resutls using scroll")
@@ -99,8 +105,12 @@ object ScanCommand extends ScanCommandParams with Runnable {
       .setSize(hitsPerShard)
       .setTimeout(new TimeValue(requestTimeoutMins, TimeUnit.MINUTES))
 
-    Option(routing).foreach { (r) =>
+    Option(routing) foreach { (r) =>
       reqBuilder.setRouting(r)
+    }
+
+    Option(shard) foreach { (s) =>
+      reqBuilder.setPreference(s"_shards:$s")
     }
 
     ScanCommand.fields.asScala.foreach(reqBuilder.addField)
