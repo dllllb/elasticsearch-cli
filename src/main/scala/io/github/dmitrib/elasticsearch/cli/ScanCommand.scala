@@ -92,7 +92,7 @@ object ScanCommand extends ScanCommandParams with Runnable {
     }
 
     @tailrec def iterate() {
-      scrollWithRetry(1)
+      scrollWithRetry(retryMax)
 
       if (scrollResp.getHits.getHits.length == 0) {
         return
