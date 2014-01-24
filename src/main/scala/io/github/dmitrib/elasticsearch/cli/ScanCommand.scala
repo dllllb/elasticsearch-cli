@@ -81,7 +81,7 @@ object ScanCommand extends ScanCommandParams with Runnable {
       } catch {
         case e: NoNodeAvailableException => {
           System.err.println(s"scroll attempt N:$retryCount failed: ${e.getMessage}")
-          if (retryCount < retryMax) {
+          if (retryCount <= retryMax) {
             Thread.sleep(1000)
             scrollWithRetry(retryCount+1)
           } else {
@@ -92,7 +92,7 @@ object ScanCommand extends ScanCommandParams with Runnable {
     }
 
     @tailrec def iterate() {
-      scrollWithRetry(retryMax)
+      scrollWithRetry(1)
 
       if (scrollResp.getHits.getHits.length == 0) {
         return

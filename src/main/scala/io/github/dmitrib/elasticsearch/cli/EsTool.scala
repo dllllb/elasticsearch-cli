@@ -81,20 +81,27 @@ object EsTool {
   }
 
   def main(args: Array[String]) {
-    val jc = new JCommander
-    jc.addObject(EsTool)
-    jc.addCommand("scan", ScanCommand)
-    jc.addCommand("scan-join", ScanJoinCommand)
-    jc.addCommand("multi-get", MultiGetCommand)
-    jc.addCommand("batch-upload", BatchUploadCommand)
-    jc.addCommand("search-by-input", SearchByInputCommand)
+    try {
+      val jc = new JCommander
+      jc.addObject(EsTool)
+      jc.addCommand("scan", ScanCommand)
+      jc.addCommand("scan-join", ScanJoinCommand)
+      jc.addCommand("multi-get", MultiGetCommand)
+      jc.addCommand("batch-upload", BatchUploadCommand)
+      jc.addCommand("search-by-input", SearchByInputCommand)
 
-    jc.parse(args: _*)
+      jc.parse(args: _*)
 
-    if (help) {
-      jc.usage()
-    } else {
-      jc.getCommands.get(jc.getParsedCommand).getObjects.asScala.head.asInstanceOf[Runnable].run()
+      if (help) {
+        jc.usage()
+      } else {
+        jc.getCommands.get(jc.getParsedCommand).getObjects.asScala.head.asInstanceOf[Runnable].run()
+      }
+    } catch {
+      case t: Throwable => {
+        t.printStackTrace()
+        System.exit(1)
+      }
     }
   }
 }
