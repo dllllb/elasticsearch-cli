@@ -37,6 +37,8 @@ object BatchUploadCommand extends Runnable {
       }
     }
 
+    client.admin().indices().prepareFlush(index).execute().get()
+
     client.close()
   }
 }
