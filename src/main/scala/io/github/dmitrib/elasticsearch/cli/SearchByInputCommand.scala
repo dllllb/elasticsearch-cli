@@ -40,7 +40,15 @@ object SearchByInputCommand extends Runnable {
       val req = client.prepareSearch(index).setTypes(kind).setQuery(qb).setSize(batch.size)
       fields.asScala.foreach(req.addField)
       val resp = req.execute().actionGet()
-      resp.getHits.getHits.foreach((h) => println(hitToString(h)))
+      val hits = resp.getHits
+      hits.getHits.foreach((h) => println(hitToString(h)))
+
+      if (hits.totalHits() > batch.size) {
+        req.setSize(hits.totalHits().toInt - hits.getHits.size)
+          .setFrom(hits.getHits.size)
+        val respAdd = req.execute().actionGet()
+        respAdd.getHits.getHits.foreach((h) => println(hitToString(h)))
+      }
     }
 
     client.close()
