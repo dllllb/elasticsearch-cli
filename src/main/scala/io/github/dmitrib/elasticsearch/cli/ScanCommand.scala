@@ -2,7 +2,7 @@ package io.github.dmitrib.elasticsearch.cli
 
 import com.beust.jcommander.{Parameter, Parameters}
 import java.util
-import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.index.query.{QueryBuilder, FilterBuilders, QueryBuilders}
 import org.elasticsearch.action.search.{SearchRequestBuilder, SearchType}
 import org.elasticsearch.common.unit.TimeValue
 import java.util.concurrent.TimeUnit
@@ -15,9 +15,15 @@ trait ScanCommandParams extends {
   @Parameter(names = Array("--query"), description = "Search query in Lucene syntax")
   var query: String = _
 
-  def queryBuilder = Option(query)
-    .map(QueryBuilders.queryString)
-    .getOrElse(QueryBuilders.matchAllQuery())
+  def queryBuilder = {
+    val q: QueryBuilder = Option(query)
+      .map(QueryBuilders.queryString)
+      .getOrElse(QueryBuilders.matchAllQuery())
+
+    Option(scriptFilter).map { script =>
+      QueryBuilders.filteredQuery(q, FilterBuilders.scriptFilter(script))
+    }.getOrElse(q)
+  }
 
   @Parameter(
     names = Array("-f", "--field"),
@@ -46,6 +52,12 @@ trait ScanCommandParams extends {
     description = "Shard number on which to execute search"
   )
   var shard: String = _
+
+  @Parameter(
+    names = Array("--script-filter"),
+    description = "Script to filter results"
+  )
+  var scriptFilter: String = _
 
   @Parameter(
     names = Array("--exclude"),
