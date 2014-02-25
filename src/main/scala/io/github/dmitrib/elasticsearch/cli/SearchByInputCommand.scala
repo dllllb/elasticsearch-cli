@@ -37,7 +37,8 @@ object SearchByInputCommand extends Runnable {
     for (batch <- it) {
       val qb = QueryBuilders.boolQuery()
       batch.foreach((attr) => qb.should(QueryBuilders.termQuery(searchField, attr)))
-      val req = client.prepareSearch(index).setTypes(kind).setQuery(qb).setSize(batch.size)
+      val req = client.prepareSearch(index).setQuery(qb).setSize(batch.size)
+      Option(kind).foreach(req.setTypes(_))
       fields.asScala.foreach(req.addField)
       val resp = req.execute().actionGet()
       val hits = resp.getHits

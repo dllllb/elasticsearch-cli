@@ -14,10 +14,8 @@ import org.elasticsearch.common.transport.InetSocketTransportAddress
 object EsTool {
   @Parameter(names = Array("--index"), description = "ElasticSearch index", required = true)
   var index: String = _
-  @Parameter(names = Array("--type"), description = "ElasticSearch document type", required = true)
+  @Parameter(names = Array("--type"), description = "ElasticSearch document type")
   var kind: String = _
-  @Parameter(names = Array("--cluster-name"), description = "ElasticSearch cluster name", required = true)
-  var clusterName: String = _
 
   @Parameter(
     names = Array("--sniff"),
@@ -39,7 +37,7 @@ object EsTool {
 
   lazy val client = {
     val settings = ImmutableSettings.settingsBuilder
-      .put("cluster.name", clusterName)
+      .put("client.transport.ignore_cluster_name", true)
       .put("client.transport.sniff", nodeSniff)
       .build
 

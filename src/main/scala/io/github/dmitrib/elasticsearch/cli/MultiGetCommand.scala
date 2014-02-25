@@ -30,7 +30,7 @@ object MultiGetCommand extends Runnable {
     val reader = new BufferedReader(new InputStreamReader(stream))
     val it = Iterator.continually(reader.readLine).takeWhile(_ != null).grouped(batchSize)
     for (batch <- it) {
-      val idsQ = QueryBuilders.idsQuery(kind)
+      val idsQ = QueryBuilders.idsQuery(Option(kind).getOrElse(throw new IllegalStateException("type is not set")))
       batch.foreach(idsQ.addIds(_))
       val req = client.prepareSearch(index).setQuery(idsQ).setSize(batch.size)
       fields.asScala.foreach(req.addField)

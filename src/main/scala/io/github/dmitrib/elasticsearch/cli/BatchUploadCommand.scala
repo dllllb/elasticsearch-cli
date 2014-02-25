@@ -29,7 +29,11 @@ object BatchUploadCommand extends Runnable {
           case Array(a, b) => (a, b)
           case _ => throw new Exception(s"error splitting line $line")
         }
-        req.add(client.prepareIndex(index, kind, id).setSource(doc))
+        req.add(client.prepareIndex(
+          index,
+          Option(kind).getOrElse(throw new IllegalStateException("type is not set")),
+          id
+        ).setSource(doc))
       }
       val res = req.execute().actionGet()
       if (res.hasFailures) {

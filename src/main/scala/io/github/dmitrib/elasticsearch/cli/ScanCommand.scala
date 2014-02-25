@@ -10,6 +10,7 @@ import org.elasticsearch.client.transport.NoNodeAvailableException
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import org.elasticsearch.search.SearchHit
+import io.github.dmitrib.elasticsearch.cli.EsTool._
 
 trait ScanCommandParams extends {
   @Parameter(names = Array("--query"), description = "Search query in Lucene syntax")
@@ -120,21 +121,18 @@ object ScanCommand extends ScanCommandParams with Runnable {
 
   def run() {
     val reqBuilder = client.prepareSearch(index)
-      .setTypes(kind)
       .setSearchType(SearchType.SCAN)
       .setScroll(new TimeValue(600000))
       .setQuery(queryBuilder)
       .setSize(hitsPerShard)
       .setTimeout(new TimeValue(requestTimeoutMins, TimeUnit.MINUTES))
 
-    Option(routing) foreach { (r) =>
-      reqBuilder.setRouting(r)
-    }
+    Option(kind).foreach(reqBuilder.setTypes(_))
+    Option(routing).foreach(reqBuilder.setRouting)
 
-    Option(shard) foreach { (s) =>
+    Option(shard) foreach { s =>
       reqBuilder.setPreference(s"_shards:$s")
     }
-
 
     if (!excludeFields.isEmpty || !includeFields.isEmpty) {
       reqBuilder.addPartialField("partial",
@@ -145,7 +143,7 @@ object ScanCommand extends ScanCommandParams with Runnable {
 
     ScanCommand.fields.asScala.foreach(reqBuilder.addField)
 
-    scan(reqBuilder) { (hits) =>
+    scan(reqBuilder) { hits =>
       hits.foreach((h) => println(hitToString(h)))
     }
 

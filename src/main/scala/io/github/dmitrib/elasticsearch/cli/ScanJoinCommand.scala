@@ -39,6 +39,8 @@ object ScanJoinCommand extends ScanCommandParams with Runnable {
       .setSize(hitsPerShard)
       .setTimeout(new TimeValue(requestTimeoutMins, TimeUnit.MINUTES))
 
+    Option(kind).foreach(reqBuilder.setTypes(_))
+
     reqBuilder.addField(sourceField)
 
     ScanCommand.scan(reqBuilder) { (hits) =>
