@@ -43,22 +43,21 @@ object ScanJoinCommand extends ScanCommandParams with Runnable {
 
     reqBuilder.addField(sourceField)
 
-    ScanCommand.scan(reqBuilder) { (hits) =>
+    EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins).map(_.getHits.getHits).flatMap { hits =>
       val joinGroups = hits.map { (hit) =>
         hit.getFields.get(sourceField).getValue.toString
       }.grouped(joinRequestSize)
 
-      joinGroups.map { (group) =>
+      joinGroups.flatMap { (group) =>
         val qb = QueryBuilders.boolQuery()
         group.foreach((attr) => qb.should(QueryBuilders.termQuery(targetField, attr)))
         val joinReq = client.prepareSearch(joinIndex)
           .setTypes(joinType)
           .setQuery(qb)
           .setSize(group.size)
-        val hits = joinReq.execute().actionGet().getHits.getHits
-        hits.foreach((h) => println(hitToString(h)))
+        joinReq.execute().actionGet().getHits.getHits
       }
-    }
+    }.foreach { h => println(hitToString(h)) }
 
     client.close()
   }

@@ -3,7 +3,7 @@ package io.github.dmitrib.elasticsearch.cli
 import com.beust.jcommander.{Parameter, Parameters}
 import java.util
 import org.elasticsearch.index.query.{QueryBuilder, FilterBuilders, QueryBuilders}
-import org.elasticsearch.action.search.{SearchRequestBuilder, SearchType}
+import org.elasticsearch.action.search.{SearchResponse, SearchRequestBuilder, SearchType}
 import org.elasticsearch.common.unit.TimeValue
 import java.util.concurrent.TimeUnit
 import org.elasticsearch.client.transport.NoNodeAvailableException
@@ -75,50 +75,6 @@ trait ScanCommandParams extends {
 object ScanCommand extends ScanCommandParams with Runnable {
   import EsTool._
 
-  def scan(reqBuilder: SearchRequestBuilder)(hitAction: (Array[SearchHit]) => Unit) {
-    var scrollResp = reqBuilder.execute.actionGet(requestTimeoutMins, TimeUnit.MINUTES)
-
-    def scroll() {
-      scrollResp = client.prepareSearchScroll(scrollResp.getScrollId)
-        .setScroll(new TimeValue(600000))
-        .execute
-        .actionGet(requestTimeoutMins, TimeUnit.MINUTES)
-
-      val hits = scrollResp.getHits.getHits
-      hitAction(hits)
-    }
-
-    def scrollWithRetry(retryCount: Int) {
-      try {
-        scroll()
-      } catch {
-        case e: NoNodeAvailableException => {
-          System.err.println(s"scroll attempt N:$retryCount failed: ${e.getMessage}")
-          if (retryCount <= retryMax) {
-            Thread.sleep(1000)
-            scrollWithRetry(retryCount+1)
-          } else {
-            throw e
-          }
-        }
-      }
-    }
-
-    @tailrec def iterate() {
-      scrollWithRetry(1)
-
-      if (scrollResp.getHits.getHits.length == 0) {
-        return
-      } else {
-        iterate()
-      }
-    }
-
-    iterate()
-
-    client.close()
-  }
-
   def run() {
     val reqBuilder = client.prepareSearch(index)
       .setSearchType(SearchType.SCAN)
@@ -143,8 +99,8 @@ object ScanCommand extends ScanCommandParams with Runnable {
 
     ScanCommand.fields.asScala.foreach(reqBuilder.addField)
 
-    scan(reqBuilder) { hits =>
-      hits.foreach((h) => println(hitToString(h)))
+    EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins).flatMap(_.getHits.getHits).foreach { h =>
+      println(hitToString(h))
     }
 
     client.close()
