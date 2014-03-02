@@ -99,7 +99,7 @@ object ScanCommand extends ScanCommandParams with Runnable {
 
     ScanCommand.fields.asScala.foreach(reqBuilder.addField)
 
-    EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins).flatMap(_.getHits.getHits).foreach { h =>
+    EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins)._1.flatMap(_.getHits.getHits).foreach { h =>
       println(hitToString(h))
     }
 

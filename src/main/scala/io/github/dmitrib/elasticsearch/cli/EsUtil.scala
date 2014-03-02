@@ -18,7 +18,7 @@ object EsUtil {
           .execute
           .actionGet(requestTimeoutMins, TimeUnit.MINUTES)
       } catch {
-        case e: NoNodeAvailableException => {
+        case e: NoNodeAvailableException =>
           System.err.println(s"scroll attempt N:$retryCount failed: ${e.getMessage}")
           if (retryCount <= retryMax) {
             Thread.sleep(1000)
@@ -26,13 +26,13 @@ object EsUtil {
           } else {
             throw e
           }
-        }
       }
     }
 
     val scrollResp = reqBuilder.execute.actionGet(requestTimeoutMins, TimeUnit.MINUTES)
-    Iterator.continually {
+    val it = Iterator.continually {
       scroll(scrollResp, retryMax)
     }.takeWhile(_.getHits.getHits.length != 0)
+    (it, scrollResp.getHits.totalHits())
   }
 }
