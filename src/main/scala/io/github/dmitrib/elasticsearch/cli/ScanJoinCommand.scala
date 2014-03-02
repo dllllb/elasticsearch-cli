@@ -32,7 +32,6 @@ object ScanJoinCommand extends ScanCommandParams with Runnable {
 
   def run() {
     val reqBuilder = client.prepareSearch(index)
-      .setTypes(kind)
       .setSearchType(SearchType.SCAN)
       .setScroll(new TimeValue(600000))
       .setQuery(queryBuilder)
