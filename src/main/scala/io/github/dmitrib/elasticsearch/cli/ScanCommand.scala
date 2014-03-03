@@ -92,8 +92,8 @@ object ScanCommand extends ScanCommandParams with Runnable {
 
     if (!excludeFields.isEmpty || !includeFields.isEmpty) {
       reqBuilder.addPartialField("partial",
-        ScanCommand.includeFields.asScala.toArray,
-        ScanCommand.excludeFields.asScala.toArray
+        includeFields.asScala.toArray,
+        excludeFields.asScala.toArray
       )
     }
 
