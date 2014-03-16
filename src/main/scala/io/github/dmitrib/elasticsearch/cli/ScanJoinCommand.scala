@@ -5,6 +5,7 @@ import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.action.search.SearchType
 import org.elasticsearch.common.unit.TimeValue
 import java.util.concurrent.TimeUnit
+import scala.collection.JavaConverters._
 
 @Parameters(commandDescription = "Use search result documents attribute to get documents from other index")
 object ScanJoinCommand extends ScanCommandParams with Runnable {
@@ -12,8 +13,6 @@ object ScanJoinCommand extends ScanCommandParams with Runnable {
 
   @Parameter(names = Array("--join-index"), description = "Index for documents to join", required = true)
   var joinIndex: String = _
-  @Parameter(names = Array("--join-type"), description = "Type of documents to join", required = true)
-  var joinType: String = _
 
   @Parameter(
     names = Array("--source-field"),
@@ -49,11 +48,14 @@ object ScanJoinCommand extends ScanCommandParams with Runnable {
 
       joinGroups.flatMap { (group) =>
         val qb = QueryBuilders.boolQuery()
-        group.foreach((attr) => qb.should(QueryBuilders.termQuery(targetField, attr)))
+        group.foreach { (attr) => qb.should(QueryBuilders.termQuery(targetField, attr)) }
+
         val joinReq = client.prepareSearch(joinIndex)
-          .setTypes(joinType)
           .setQuery(qb)
           .setSize(group.size)
+
+        ScanCommand.fields.asScala.foreach(joinReq.addField)
+
         joinReq.execute().actionGet().getHits.getHits
       }
     }.foreach { h => println(hitToString(h)) }
