@@ -19,7 +19,21 @@
         <jackson.version>2.2.2</jackson.version>
     </properties>
 
+    <distributionManagement>
+        <repository>
+            <id>aws-maven-pub</id>
+            <url>s3://maven-repo-pub</url>
+        </repository>
+    </distributionManagement>
+
     <build>
+        <extensions>
+            <extension>
+                <groupId>org.springframework.build</groupId>
+                <artifactId>aws-maven</artifactId>
+                <version>5.0.0.RELEASE</version>
+            </extension>
+        </extensions>
         <plugins>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
