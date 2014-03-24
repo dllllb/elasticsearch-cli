@@ -31,7 +31,7 @@ object EsUtil {
 
     val scrollResp = reqBuilder.execute.actionGet(requestTimeoutMins, TimeUnit.MINUTES)
     val it = Iterator.continually {
-      scroll(scrollResp, retryMax)
+      scroll(scrollResp, 1)
     }.takeWhile(_.getHits.getHits.length != 0)
     (it, scrollResp.getHits.totalHits())
   }
