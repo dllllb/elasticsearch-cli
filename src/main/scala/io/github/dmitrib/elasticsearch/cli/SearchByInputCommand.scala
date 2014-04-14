@@ -12,7 +12,8 @@ object SearchByInputCommand extends Runnable {
 
   @Parameter(
     names = Array("--search-field"),
-    description = "A field to search")
+    description = "A field to search",
+    required = true)
   var searchField: String = _
 
   @Parameter(
