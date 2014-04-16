@@ -43,12 +43,10 @@ object EsTool {
 
     val client = endpoints.asScala.foldLeft(new TransportClient(settings)) { (cl, hostPort) =>
       hostPort.split(":") match {
-        case Array(host, port) => {
+        case Array(host, port) =>
           cl.addTransportAddress(new InetSocketTransportAddress(host, port.toInt))
-        }
-        case Array(host) => {
+        case Array(host) =>
           cl.addTransportAddress(new InetSocketTransportAddress(host, 9300))
-        }
       }
     }
 
@@ -62,20 +60,30 @@ object EsTool {
 
   val jsonFactory = new MappingJsonFactory(mapper)
 
-  def hitToString(hit: SearchHit) = {
-    val writer = new StringWriter()
-    val generator = jsonFactory.createGenerator(writer)
-
-    generator.writeStartObject()
-    generator.writeStringField("_id", hit.getId)
+  def hitToString(hit: SearchHit, srcOnly: Boolean = false) = {
     val fields = hit.getFields.asScala
-    val source = fields.get("partial").map(_.getValue[AnyRef]).getOrElse(hit.getSource)
-    generator.writeObjectField("_source", source)
-    val remainingFields = fields - "partial"
-    generator.writeObjectField("fields", remainingFields.map((e) => (e._1, e._2.getValue[AnyRef])))
-    generator.writeEndObject()
-    generator.close()
-    writer.toString
+    if (srcOnly) {
+      val source = fields.get("partial").map(_.getValue[AnyRef]).getOrElse(hit.getSource)
+      mapper.writeValueAsString(source)
+    } else {
+      val writer = new StringWriter()
+      val generator = jsonFactory.createGenerator(writer)
+
+      generator.writeStartObject()
+      generator.writeStringField("_id", hit.getId)
+      val source = fields.get("partial").map(_.getValue[util.Map[String, AnyRef]]).getOrElse(hit.getSource)
+      if (source != null) {
+        generator.writeObjectField("_source", source)
+      }
+      val remainingFields = fields - "partial"
+      if (!remainingFields.isEmpty) {
+        generator.writeObjectField("fields", remainingFields.map((e) => (e._1, e._2.getValue[AnyRef])))
+      }
+      generator.writeEndObject()
+
+      generator.close()
+      writer.toString
+    }
   }
 
   def main(args: Array[String]) {

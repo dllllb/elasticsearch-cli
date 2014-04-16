@@ -69,6 +69,11 @@ trait ScanCommandParams extends {
     names = Array("--include"),
     description = "A wildcard pattern for fields to include in source, can be specified multiple times")
   val includeFields: util.List[String] = new util.ArrayList[String]
+
+  @Parameter(
+    names = Array("--src-only"),
+    description = "print only source JSON")
+  val srcOnly = false
 }
 
 @Parameters(commandDescription = "Read search results using scroll")
@@ -100,7 +105,7 @@ object ScanCommand extends ScanCommandParams with Runnable {
     ScanCommand.fields.asScala.foreach(reqBuilder.addField)
 
     EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins)._1.flatMap(_.getHits.getHits).foreach { h =>
-      println(hitToString(h))
+      println(hitToString(h, srcOnly))
     }
 
     client.close()

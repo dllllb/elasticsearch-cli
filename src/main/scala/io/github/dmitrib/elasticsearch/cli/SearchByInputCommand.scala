@@ -41,6 +41,11 @@ object SearchByInputCommand extends Runnable {
     description = "A wildcard pattern for fields to include in source, can be specified multiple times")
   val includeFields: util.List[String] = new util.ArrayList[String]
 
+  @Parameter(
+    names = Array("--src-only"),
+    description = "print only source JSON")
+  val srcOnly = false
+
   def run() {
     val stream = Option(file).map(new FileInputStream(_)).getOrElse(System.in)
     val reader = new BufferedReader(new InputStreamReader(stream))
@@ -67,7 +72,7 @@ object SearchByInputCommand extends Runnable {
         req.setSize(hits.totalHits().toInt - hits.getHits.size)
           .setFrom(hits.getHits.size)
         val respAdd = req.execute().actionGet()
-        respAdd.getHits.getHits.foreach((h) => println(hitToString(h)))
+        respAdd.getHits.getHits.foreach((h) => println(hitToString(h, srcOnly)))
       }
     }
 
