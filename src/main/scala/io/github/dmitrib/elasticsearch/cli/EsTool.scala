@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.{SerializationFeature, MappingJsonFactory,
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.elasticsearch.search.SearchHit
 import java.io.StringWriter
-import com.beust.jcommander.{JCommander, Parameter}
+import com.beust.jcommander.{ParameterException, JCommander, Parameter}
 import java.util
 import scala.collection.JavaConverters._
 import org.elasticsearch.common.settings.ImmutableSettings
@@ -103,10 +103,13 @@ object EsTool {
         jc.getCommands.get(jc.getParsedCommand).getObjects.asScala.head.asInstanceOf[Runnable].run()
       }
     } catch {
-      case t: Throwable => {
+      case e: ParameterException =>
+        println(e.getMessage)
+        println("use --help to see the available options")
+        System.exit(1)
+      case t: Throwable =>
         t.printStackTrace()
         System.exit(1)
-      }
     }
   }
 }
