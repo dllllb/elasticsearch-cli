@@ -31,6 +31,16 @@ object SearchByInputCommand extends Runnable {
     description = "A file to read newline-separated search attributes, system input will be used if no file is specified")
   var file: String = _
 
+  @Parameter(
+    names = Array("--exclude"),
+    description = "A wildcard pattern for fields to exclude from source, can be specified multiple times")
+  val excludeFields: util.List[String] = new util.ArrayList[String]
+
+  @Parameter(
+    names = Array("--include"),
+    description = "A wildcard pattern for fields to include in source, can be specified multiple times")
+  val includeFields: util.List[String] = new util.ArrayList[String]
+
   def run() {
     val stream = Option(file).map(new FileInputStream(_)).getOrElse(System.in)
     val reader = new BufferedReader(new InputStreamReader(stream))
@@ -41,6 +51,13 @@ object SearchByInputCommand extends Runnable {
       val req = client.prepareSearch(index).setQuery(qb).setSize(batch.size)
       Option(kind).foreach(req.setTypes(_))
       fields.asScala.foreach(req.addField)
+
+      if (!excludeFields.isEmpty || !includeFields.isEmpty) {
+        req.addPartialField("partial",
+          includeFields.asScala.toArray,
+          excludeFields.asScala.toArray
+        )
+      }
 
       val resp = req.execute().actionGet()
       val hits = resp.getHits
