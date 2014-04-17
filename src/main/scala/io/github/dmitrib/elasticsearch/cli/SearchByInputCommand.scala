@@ -3,7 +3,7 @@ package io.github.dmitrib.elasticsearch.cli
 import com.beust.jcommander.{Parameter, Parameters}
 import java.util
 import java.io.{InputStreamReader, BufferedReader, FileInputStream}
-import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.index.query.{FilterBuilders, QueryBuilders}
 import scala.collection.JavaConverters._
 
 @Parameters(commandDescription = "Retrieve documents by field values")
@@ -51,8 +51,10 @@ object SearchByInputCommand extends Runnable {
     val reader = new BufferedReader(new InputStreamReader(stream))
     val it = Iterator.continually(reader.readLine).takeWhile(_ != null).grouped(batchSize)
     for (batch <- it) {
-      val qb = QueryBuilders.boolQuery()
-      batch.foreach((attr) => qb.should(QueryBuilders.termQuery(searchField, attr)))
+      val fb = FilterBuilders.orFilter(
+        batch.map { attr => FilterBuilders.termFilter(searchField, attr).cache(false) } :_*
+      ).cache(false)
+      val qb = QueryBuilders.filteredQuery(QueryBuilders.matchAllQuery(), fb)
       val req = client.prepareSearch(index).setQuery(qb).setSize(batch.size)
       Option(kind).foreach(req.setTypes(_))
       fields.asScala.foreach(req.addField)
