@@ -34,7 +34,19 @@ trait ScanCommandParams extends {
   @Parameter(
     names = Array("--hits-per-shard"),
     description = "Number of hits to extract in each iteration from each shard")
-  var hitsPerShard = 1000
+  var _hitsPerShard: Integer = _
+
+  def hitsPerShard = Option(_hitsPerShard).map(_.intValue).getOrElse {
+    val resp = client.admin().indices().prepareStatus(index).get()
+    val stats = resp.getIndex(index)
+    val primaryShardCount = resp.getShards.count(_.getShardRouting.primary)
+
+    val docCount = stats.getDocs.getMaxDoc
+    val indexSize = stats.getPrimaryStoreSize.bytes()
+
+    val hps = (5000000D/(indexSize.toDouble/docCount*primaryShardCount)).toInt
+    hps
+  }
 
   @Parameter(
     names = Array("--retry-max"),
