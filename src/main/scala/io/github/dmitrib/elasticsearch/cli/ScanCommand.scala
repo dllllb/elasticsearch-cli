@@ -3,13 +3,10 @@ package io.github.dmitrib.elasticsearch.cli
 import com.beust.jcommander.{Parameter, Parameters}
 import java.util
 import org.elasticsearch.index.query.{QueryBuilder, FilterBuilders, QueryBuilders}
-import org.elasticsearch.action.search.{SearchResponse, SearchRequestBuilder, SearchType}
+import org.elasticsearch.action.search.SearchType
 import org.elasticsearch.common.unit.TimeValue
 import java.util.concurrent.TimeUnit
-import org.elasticsearch.client.transport.NoNodeAvailableException
-import scala.annotation.tailrec
 import scala.collection.JavaConverters._
-import org.elasticsearch.search.SearchHit
 import io.github.dmitrib.elasticsearch.cli.EsTool._
 
 trait ScanCommandParams extends {
@@ -36,7 +33,7 @@ trait ScanCommandParams extends {
     description = "Number of hits to extract in each iteration from each shard")
   var _hitsPerShard: Integer = _
 
-  def hitsPerShard = Option(_hitsPerShard).map(_.intValue).getOrElse {
+  lazy val hitsPerShard = Option(_hitsPerShard).map(_.intValue).getOrElse {
     val resp = client.admin().indices().prepareStatus(index).get()
     val stats = resp.getIndex(index)
     val primaryShardCount = resp.getShards.count(_.getShardRouting.primary)
@@ -45,6 +42,7 @@ trait ScanCommandParams extends {
     val indexSize = stats.getPrimaryStoreSize.bytes()
 
     val hps = (5000000D/(indexSize.toDouble/docCount*primaryShardCount)).toInt
+    System.err.println(s"using $hps htis per shard")
     hps
   }
 
