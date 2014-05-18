@@ -42,7 +42,7 @@ trait ScanCommandParams extends {
     val indexSize = stats.getPrimaryStoreSize.bytes()
 
     val hps = (5000000D/(indexSize.toDouble/docCount*primaryShardCount)).toInt
-    System.err.println(s"using $hps htis per shard")
+    System.err.println(s"using $hps hits per shard")
     hps
   }
 
