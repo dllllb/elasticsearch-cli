@@ -58,7 +58,7 @@ object ScanJoinCommand extends ScanCommandParams with Runnable {
 
         joinReq.execute().actionGet().getHits.getHits
       }
-    }.foreach { h => println(hitToString(h, srcOnly)) }
+    }.foreach { h => println(hitToString(h, srcOnly, srcIdPair)) }
 
     client.close()
   }

@@ -60,11 +60,18 @@ object EsTool {
 
   val jsonFactory = new MappingJsonFactory(mapper)
 
-  def hitToString(hit: SearchHit, srcOnly: Boolean = false) = {
+  def hitToString(hit: SearchHit, srcOnly: Boolean = false, srcIdPair: Boolean = false) = {
     val fields = hit.getFields.asScala
     if (srcOnly) {
-      val source = fields.get("partial").map(_.getValue[AnyRef]).getOrElse(hit.getSource)
-      mapper.writeValueAsString(source)
+      fields.get("partial").map { field =>
+        mapper.writeValueAsString(field.getValue[AnyRef])
+      }.getOrElse(hit.getSourceAsString)
+    } else if (srcIdPair) {
+      val id = hit.getId
+      val source = fields.get("partial").map { field =>
+        mapper.writeValueAsString(field.getValue[AnyRef])
+      }.getOrElse(hit.getSourceAsString)
+      s"$id\t$source"
     } else {
       val writer = new StringWriter()
       val generator = jsonFactory.createGenerator(writer)

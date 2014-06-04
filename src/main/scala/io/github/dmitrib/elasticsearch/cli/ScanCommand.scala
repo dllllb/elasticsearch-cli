@@ -84,6 +84,11 @@ trait ScanCommandParams extends {
     names = Array("--src-only"),
     description = "print only source JSON")
   val srcOnly = false
+
+  @Parameter(
+    names = Array("--src-id-pair"),
+    description = "print ID and source separated by TAB")
+  val srcIdPair = false
 }
 
 @Parameters(commandDescription = "Read search results using scroll")
@@ -115,7 +120,7 @@ object ScanCommand extends ScanCommandParams with Runnable {
     ScanCommand.fields.asScala.foreach(reqBuilder.addField)
 
     EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins)._1.flatMap(_.getHits.getHits).foreach { h =>
-      println(hitToString(h, srcOnly))
+      println(hitToString(h, srcOnly, srcIdPair))
     }
 
     client.close()
