@@ -63,14 +63,14 @@ object EsTool {
   def hitToString(hit: SearchHit, srcOnly: Boolean = false, srcIdPair: Boolean = false) = {
     val fields = hit.getFields.asScala
     if (srcOnly) {
-      fields.get("partial").map { field =>
+      fields.get("partial").fold(hit.getSourceAsString) { field =>
         mapper.writeValueAsString(field.getValue[AnyRef])
-      }.getOrElse(hit.getSourceAsString)
+      }
     } else if (srcIdPair) {
       val id = hit.getId
-      val source = fields.get("partial").map { field =>
+      val source = fields.get("partial").fold(hit.getSourceAsString) { field =>
         mapper.writeValueAsString(field.getValue[AnyRef])
-      }.getOrElse(hit.getSourceAsString)
+      }
       s"$id\t$source"
     } else {
       val writer = new StringWriter()
@@ -78,13 +78,17 @@ object EsTool {
 
       generator.writeStartObject()
       generator.writeStringField("_id", hit.getId)
-      val source = fields.get("partial").map(_.getValue[util.Map[String, AnyRef]]).getOrElse(hit.getSource)
+      val source = fields.get("partial").fold(hit.getSource) { field =>
+        field.getValue[util.Map[String, AnyRef]]
+      }
       if (source != null) {
         generator.writeObjectField("_source", source)
       }
       val remainingFields = fields - "partial"
       if (!remainingFields.isEmpty) {
-        generator.writeObjectField("fields", remainingFields.map((e) => (e._1, e._2.getValue[AnyRef])))
+        generator.writeObjectField("fields", remainingFields.map { e =>
+          (e._1, e._2.getValue[AnyRef])
+        })
       }
       generator.writeEndObject()
 
