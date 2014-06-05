@@ -18,9 +18,9 @@ trait ScanCommandParams extends {
       .map(QueryBuilders.queryString)
       .getOrElse(QueryBuilders.matchAllQuery())
 
-    Option(scriptFilter).map { script =>
+    Option(scriptFilter).fold(q) { script =>
       QueryBuilders.filteredQuery(q, FilterBuilders.scriptFilter(script))
-    }.getOrElse(q)
+    }
   }
 
   @Parameter(
@@ -33,8 +33,8 @@ trait ScanCommandParams extends {
     description = "Number of hits to extract in each iteration from each shard")
   var _hitsPerShard: Integer = _
 
-  lazy val hitsPerShard = Option(_hitsPerShard).map(_.intValue).getOrElse {
-    val resp = client.admin().indices().prepareStatus(index).get()
+  lazy val hitsPerShard = Option(_hitsPerShard).fold {
+    val resp = client.admin().indices().prepareStatus(index).get(TimeValue.timeValueMinutes(5))
     val stats = resp.getIndex(index)
     val primaryShardCount = resp.getShards.count(_.getShardRouting.primary)
 
@@ -44,6 +44,8 @@ trait ScanCommandParams extends {
     val hps = (5000000D/(indexSize.toDouble/docCount*primaryShardCount)).toInt
     System.err.println(s"using $hps hits per shard")
     hps
+  } { hps =>
+    hps.intValue
   }
 
   @Parameter(

@@ -47,7 +47,7 @@ object SearchByInputCommand extends Runnable {
   val srcOnly = false
 
   def run() {
-    val stream = Option(file).map(new FileInputStream(_)).getOrElse(System.in)
+    val stream = Option(file).fold(System.in)(new FileInputStream(_))
     val reader = new BufferedReader(new InputStreamReader(stream))
     val it = Iterator.continually(reader.readLine).takeWhile(_ != null).grouped(batchSize)
     for (batch <- it) {
