@@ -10,6 +10,9 @@ import scala.collection.JavaConverters._
 import org.elasticsearch.common.settings.ImmutableSettings
 import org.elasticsearch.client.transport.TransportClient
 import org.elasticsearch.common.transport.InetSocketTransportAddress
+import com.amazonaws.services.ec2.AmazonEC2Client
+import com.amazonaws.services.ec2.model.{Filter, DescribeInstancesRequest}
+import com.amazonaws.regions.{Region, Regions}
 
 object EsTool {
   @Parameter(names = Array("--index"), description = "ElasticSearch index", required = true)
@@ -19,13 +22,39 @@ object EsTool {
 
   @Parameter(
     names = Array("--sniff"),
-    description = "Request a list of other ElasticSearch cluster nodes from the endpoint nodes")
+    description = "Request a list of other cluster nodes from the endpoint nodes")
   var nodeSniff = false
 
   @Parameter(
     names = Array("--endpoint"),
-    description = "ElasticSearch cluster endpoints; can be specified multiple times", required = true)
-  var endpoints: util.List[String] = _
+    description = "Cluster endpoints; can be specified multiple times")
+  var endpoints = new util.ArrayList[String]
+
+  @Parameter(
+    names = Array("--ec2-tag"),
+    description = "Use running EC2 instances with certain tag as cluster endpoints; tag should be set in form name:value")
+  var ec2tag: String = _
+
+  @Parameter(
+    names = Array("--ec2-node-port"),
+    description = "Connection port for discovered EC2 nodes")
+  var ec2nodePort = 9300
+
+  @Parameter(
+    names = Array("--ec2-region"),
+    description = "EC2 region for node discovery")
+  var ec2region = Regions.EU_WEST_1.getName
+
+  def discoverEc2Endpoints(tagName: String, tagValue: String) = {
+    val ec2 = new AmazonEC2Client
+    ec2.setRegion(Region.getRegion(Regions.fromName(ec2region)))
+    val dreq = new DescribeInstancesRequest().withFilters(
+      new Filter(s"tag:$tagName").withValues(tagValue),
+      new Filter("instance-state-name").withValues("running")
+    )
+    val resp = ec2.describeInstances(dreq)
+    resp.getReservations.asScala.flatMap(_.getInstances.asScala.map(_.getPublicDnsName))
+  }
 
   @Parameter(
       names = Array("--request-timeout-mins"),
@@ -41,14 +70,26 @@ object EsTool {
       .put("client.transport.sniff", nodeSniff)
       .build
 
-    val client = endpoints.asScala.foldLeft(new TransportClient(settings)) { (cl, hostPort) =>
-      hostPort.split(":") match {
-        case Array(host, port) =>
-          cl.addTransportAddress(new InetSocketTransportAddress(host, port.toInt))
-        case Array(host) =>
-          cl.addTransportAddress(new InetSocketTransportAddress(host, 9300))
-      }
+    val discoveredEndpoints = Option(ec2tag).map(_.split(":")).collect {
+      case Array(name, value) => discoverEc2Endpoints(name, value)
+    }.getOrElse(Seq.empty[String]).map { host =>
+      new InetSocketTransportAddress(host, ec2nodePort)
     }
+
+    val providedEndpoints = endpoints.asScala.map(_.split(":")).map {
+      case Array(host, port) =>
+        new InetSocketTransportAddress(host, port.toInt)
+      case Array(host) =>
+        new InetSocketTransportAddress(host, 9300)
+    }
+
+    if (discoveredEndpoints.isEmpty && providedEndpoints.isEmpty) {
+      throw new ParameterException("no provided endpotints and can't discover EC2 endpoints")
+    }
+
+    val client = new TransportClient(settings)
+    discoveredEndpoints.foreach(client.addTransportAddress)
+    providedEndpoints.foreach(client.addTransportAddress)
 
     client
   }
