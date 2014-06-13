@@ -1,9 +1,14 @@
 package io.github.dmitrib.elasticsearch.cli
 
+import java.util.concurrent.{TimeUnit, ArrayBlockingQueue}
+
 import com.beust.jcommander.{Parameter, Parameters}
 import java.util
 import java.io.{InputStreamReader, BufferedReader, FileInputStream}
+import org.elasticsearch.action.ActionListener
+import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.index.query.{FilterBuilders, QueryBuilders}
+import org.elasticsearch.search.SearchHits
 import scala.collection.JavaConverters._
 
 @Parameters(commandDescription = "Retrieve documents by field values")
@@ -46,16 +51,27 @@ object SearchByInputCommand extends Runnable {
     description = "print only source JSON")
   val srcOnly = false
 
+  @Parameter(
+    names = Array("--max-jobs"),
+    description = "number of requests to execute in parallel")
+  val maxJobs = 1
+
   def run() {
     val stream = Option(file).fold(System.in)(new FileInputStream(_))
     val reader = new BufferedReader(new InputStreamReader(stream))
     val it = Iterator.continually(reader.readLine).takeWhile(_ != null).grouped(batchSize)
-    for (batch <- it) {
+
+    case class Response(resp: SearchResponse, Exception: Throwable)
+
+    val respQueue = new ArrayBlockingQueue[Either[(SearchHits, Boolean), Throwable]](maxJobs)
+
+    def executeBatch(batch: Seq[String]) {
       val fb = FilterBuilders.orFilter(
         batch.map { attr => FilterBuilders.termFilter(searchField, attr).cache(false) } :_*
       ).cache(false)
       val qb = QueryBuilders.filteredQuery(QueryBuilders.matchAllQuery(), fb)
-      val req = client.prepareSearch(index).setQuery(qb).setSize(batch.size)
+      val req = client.prepareSearch(index)
+        .setQuery(qb).setSize(batch.size)
       Option(kind).foreach(req.setTypes(_))
       fields.asScala.foreach(req.addField)
 
@@ -66,15 +82,50 @@ object SearchByInputCommand extends Runnable {
         )
       }
 
-      val resp = req.execute().actionGet()
-      val hits = resp.getHits
-      hits.getHits.foreach((h) => println(hitToString(h)))
+      req.execute(new ActionListener[SearchResponse] {
+        override def onFailure(e: Throwable) {
+          respQueue.put(Right(e))
+        }
+        override def onResponse(response: SearchResponse) {
+          val hits = response.getHits
+          if (hits.totalHits() > batch.size) {
+            req.setSize(hits.totalHits().toInt - hits.getHits.size)
+              .setFrom(hits.getHits.size)
 
-      if (hits.totalHits() > batch.size) {
-        req.setSize(hits.totalHits().toInt - hits.getHits.size)
-          .setFrom(hits.getHits.size)
-        val respAdd = req.execute().actionGet()
-        respAdd.getHits.getHits.foreach((h) => println(hitToString(h, srcOnly)))
+            req.execute(new ActionListener[SearchResponse] {
+              override def onResponse(response: SearchResponse) {
+                respQueue.put(Left(response.getHits, true))
+              }
+
+              override def onFailure(e: Throwable) {
+                respQueue.put(Right(e))
+              }
+            })
+            respQueue.put(Left(hits, false))
+          }
+          respQueue.put(Left(hits, true))
+        }
+      })
+    }
+
+    var activeJobs = 0
+
+    while (activeJobs > 0 || it.hasNext) {
+      while (activeJobs < maxJobs && it.hasNext) {
+        executeBatch(it.next())
+        activeJobs = activeJobs + 1
+      }
+      val res = respQueue.poll(5, TimeUnit.MINUTES)
+
+      res match {
+        case Left((hits, finished)) =>
+          if (finished)
+            activeJobs = activeJobs - 1
+          hits.getHits.foreach { hit =>
+            println(hitToString(hit, srcOnly))
+          }
+        case Right(e) =>
+          throw e
       }
     }
 
