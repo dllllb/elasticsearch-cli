@@ -61,8 +61,6 @@ object SearchByInputCommand extends Runnable {
     val reader = new BufferedReader(new InputStreamReader(stream))
     val it = Iterator.continually(reader.readLine).takeWhile(_ != null).grouped(batchSize)
 
-    case class Response(resp: SearchResponse, Exception: Throwable)
-
     val respQueue = new ArrayBlockingQueue[Either[(SearchHits, Boolean), Throwable]](maxJobs)
 
     def executeBatch(batch: Seq[String]) {

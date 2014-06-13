@@ -1,7 +1,12 @@
 package io.github.dmitrib.elasticsearch.cli
 
+import java.util.concurrent.{TimeUnit, ArrayBlockingQueue}
+
 import com.beust.jcommander.{Parameters, Parameter}
 import java.io.{InputStreamReader, BufferedReader, FileInputStream}
+
+import org.elasticsearch.action.ActionListener
+import org.elasticsearch.action.bulk.BulkResponse
 
 @Parameters(commandDescription = "Upload a list of documents in batches")
 object BatchUploadCommand extends Runnable {
@@ -17,12 +22,20 @@ object BatchUploadCommand extends Runnable {
     description = "A file with newline-separated 'id TAB json' to upload, system input will be used if no file is specified")
   var file: String = _
 
+  @Parameter(
+    names = Array("--max-jobs"),
+    description = "number of requests to execute in parallel")
+  val maxJobs = 1
+
   def run() {
     val stream = Option(file).fold(System.in)(new FileInputStream(_))
 
     val reader = new BufferedReader(new InputStreamReader(stream))
     val it = Iterator.continually(reader.readLine).takeWhile(_ != null).grouped(batchSize)
-    for (batch <- it) {
+
+    val respQueue = new ArrayBlockingQueue[Either[BulkResponse, Throwable]](maxJobs)
+
+    def executeBatch(batch: Seq[String]) {
       val req = client.prepareBulk()
       for (line <- batch) {
         val (id, doc) = line.split("\t") match {
@@ -35,9 +48,34 @@ object BatchUploadCommand extends Runnable {
           id
         ).setSource(doc))
       }
-      val res = req.execute().actionGet()
-      if (res.hasFailures) {
-        println(res.buildFailureMessage())
+
+      req.execute(new ActionListener[BulkResponse] {
+        override def onResponse(response: BulkResponse) {
+          respQueue.put(Left(response))
+        }
+
+        override def onFailure(e: Throwable) {
+          respQueue.put(Right(e))
+        }
+      })
+    }
+
+    var activeJobs = 0
+
+    while (activeJobs > 0 || it.hasNext) {
+      while (activeJobs < maxJobs && it.hasNext) {
+        executeBatch(it.next())
+      }
+      val res = respQueue.poll(5, TimeUnit.MINUTES)
+
+      res match {
+        case Left(resp) =>
+          activeJobs = activeJobs - 1
+          if (resp.hasFailures) {
+            println(resp.buildFailureMessage())
+          }
+        case Right(e) =>
+          throw e
       }
     }
 
