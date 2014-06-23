@@ -124,6 +124,8 @@ object SearchByInputCommand extends Runnable {
           }
         case Right(e) =>
           throw e
+        case null =>
+          println("timeout waiting for response from search by intput jobs")
       }
     }
 

@@ -76,6 +76,8 @@ object BatchUploadCommand extends Runnable {
           }
         case Right(e) =>
           throw e
+        case null =>
+          System.err.print("timeout waiting for response from upload jobs")
       }
     }
 
