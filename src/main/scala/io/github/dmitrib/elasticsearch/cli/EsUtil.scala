@@ -1,5 +1,6 @@
 package io.github.dmitrib.elasticsearch.cli
 
+import org.elasticsearch.ElasticsearchTimeoutException
 import org.elasticsearch.action.search.{SearchResponse, SearchRequestBuilder}
 import org.elasticsearch.common.unit.TimeValue
 import java.util.concurrent.TimeUnit
@@ -19,13 +20,19 @@ object EsUtil {
           .actionGet(requestTimeoutMins, TimeUnit.MINUTES)
       } catch {
         case e: NoNodeAvailableException =>
-          System.err.println(s"scroll attempt N:$retryCount failed: ${e.getMessage}")
-          if (retryCount <= retryMax) {
-            Thread.sleep(1000)
-            scroll(scrollResp, retryCount+1)
-          } else {
-            throw e
-          }
+          retry(scrollResp, retryCount+1, e)
+        case e: ElasticsearchTimeoutException =>
+          retry(scrollResp, retryCount+1, e)
+      }
+    }
+
+    def retry(scrollResp: SearchResponse, retryCount: Int, e: Exception): SearchResponse = {
+      System.err.println(s"scroll attempt N:$retryCount failed: ${e.getMessage}")
+      if (retryCount <= retryMax) {
+        Thread.sleep(1000)
+        scroll(scrollResp, retryCount+1)
+      } else {
+        throw e
       }
     }
 
