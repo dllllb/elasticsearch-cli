@@ -7,6 +7,7 @@ import java.io.{InputStreamReader, BufferedReader, FileInputStream}
 
 import org.elasticsearch.action.ActionListener
 import org.elasticsearch.action.bulk.BulkResponse
+import org.elasticsearch.common.unit.TimeValue
 
 @Parameters(commandDescription = "Upload a list of documents in batches")
 object BatchUploadCommand extends Runnable {
@@ -37,6 +38,7 @@ object BatchUploadCommand extends Runnable {
 
     def executeBatch(batch: Seq[String]) {
       val req = client.prepareBulk()
+        .setTimeout(new TimeValue(requestTimeoutMins, TimeUnit.MINUTES))
       for (line <- batch) {
         val (id, doc) = line.split("\t") match {
           case Array(a, b) => (a, b)
@@ -66,7 +68,7 @@ object BatchUploadCommand extends Runnable {
       while (activeJobs < maxJobs && it.hasNext) {
         executeBatch(it.next())
       }
-      val res = respQueue.poll(5, TimeUnit.MINUTES)
+      val res = respQueue.poll(requestTimeoutMins*60+10, TimeUnit.SECONDS)
 
       res match {
         case Left(resp) =>
@@ -77,7 +79,7 @@ object BatchUploadCommand extends Runnable {
         case Right(e) =>
           throw e
         case null =>
-          System.err.print("timeout waiting for response from upload jobs")
+          throw new RuntimeException("timeout on waiting for response")
       }
     }
 

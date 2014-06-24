@@ -7,6 +7,7 @@ import java.util
 import java.io.{InputStreamReader, BufferedReader, FileInputStream}
 import org.elasticsearch.action.ActionListener
 import org.elasticsearch.action.search.SearchResponse
+import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.query.{FilterBuilders, QueryBuilders}
 import org.elasticsearch.search.SearchHits
 import scala.collection.JavaConverters._
@@ -69,7 +70,9 @@ object SearchByInputCommand extends Runnable {
       ).cache(false)
       val qb = QueryBuilders.filteredQuery(QueryBuilders.matchAllQuery(), fb)
       val req = client.prepareSearch(index)
-        .setQuery(qb).setSize(batch.size)
+        .setQuery(qb)
+        .setSize(batch.size)
+        .setTimeout(new TimeValue(requestTimeoutMins, TimeUnit.MINUTES))
       Option(kind).foreach(req.setTypes(_))
       fields.asScala.foreach(req.addField)
 
@@ -107,13 +110,14 @@ object SearchByInputCommand extends Runnable {
     }
 
     var activeJobs = 0
+    var pollTimeotCount = 0
 
     while (activeJobs > 0 || it.hasNext) {
       while (activeJobs < maxJobs && it.hasNext) {
         executeBatch(it.next())
         activeJobs = activeJobs + 1
       }
-      val res = respQueue.poll(5, TimeUnit.MINUTES)
+      val res = respQueue.poll(requestTimeoutMins*60+10, TimeUnit.SECONDS)
 
       res match {
         case Left((hits, finished)) =>
@@ -125,7 +129,7 @@ object SearchByInputCommand extends Runnable {
         case Right(e) =>
           throw e
         case null =>
-          println("timeout waiting for response from search by intput jobs")
+          throw new RuntimeException("timeout on waiting for response")
       }
     }
 
