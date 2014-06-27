@@ -48,6 +48,11 @@ object SearchByInputCommand extends Runnable {
   val srcOnly = false
 
   @Parameter(
+    names = Array("--src-id-tsv"),
+    description = "print ID and source separated by TAB")
+  val srcIdTsv = false
+
+  @Parameter(
     names = Array("--max-jobs"),
     description = "number of requests to execute in parallel")
   val maxJobs = 1
@@ -118,11 +123,7 @@ object SearchByInputCommand extends Runnable {
           if (finished)
             activeJobs = activeJobs - 1
           hits.getHits.foreach { hit =>
-            println(if (srcOnly) {
-              hit.getSourceAsString
-            } else {
-              s"${hit.getId}\t${hit.getSourceAsString}"
-            })
+            println(hitToString(hit.getId, hit.getSourceAsString, srcOnly, srcIdTsv))
           }
         case Right(e) =>
           throw e

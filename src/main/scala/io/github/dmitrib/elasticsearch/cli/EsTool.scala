@@ -2,6 +2,7 @@ package io.github.dmitrib.elasticsearch.cli
 
 import com.beust.jcommander.{ParameterException, JCommander, Parameter}
 import java.util
+
 import scala.collection.JavaConverters._
 import org.elasticsearch.common.settings.ImmutableSettings
 import org.elasticsearch.client.transport.TransportClient
@@ -88,6 +89,16 @@ object EsTool {
     providedEndpoints.foreach(client.addTransportAddress)
 
     client
+  }
+
+  def hitToString(id: String, source: String, srcOnly: Boolean, srcIdTsv: Boolean) = {
+    if (srcOnly) {
+      source
+    } else if (srcIdTsv) {
+      s"$id\t$source"
+    } else {
+      s"""{"_id":"$id","_source":$source}"""
+    }
   }
 
   def main(args: Array[String]) {

@@ -40,6 +40,11 @@ object MultiGetCommand extends Runnable {
   val srcOnly = false
 
   @Parameter(
+    names = Array("--src-id-tsv"),
+    description = "print ID and source separated by TAB")
+  val srcIdTsv = false
+
+  @Parameter(
     names = Array("--max-jobs"),
     description = "number of requests to execute in parallel")
   val maxJobs = 1
@@ -98,11 +103,7 @@ object MultiGetCommand extends Runnable {
             if (hit.isFailed) {
               println(hit.getFailure.getMessage)
             } else {
-              val res = if (srcOnly)
-                s"${hit.getId}\t${hit.getResponse.getSourceAsString}"
-              else
-                hit.getResponse.getSourceAsString
-              println(res)
+              println(hitToString(hit.getId, hit.getResponse.getSourceAsString, srcOnly, srcIdTsv))
             }
           }
         case Right(e) =>
