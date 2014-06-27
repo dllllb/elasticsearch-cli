@@ -24,11 +24,6 @@ trait ScanCommandParams extends {
   }
 
   @Parameter(
-    names = Array("-f", "--field"),
-    description = "A field to retrieve, can be specified multiple times; if no fields is supplied the whole document will be returned")
-   var fields: util.List[String] = new util.ArrayList[String]
-
-  @Parameter(
     names = Array("--hits-per-shard"),
     description = "Number of hits to extract in each iteration from each shard")
   var _hitsPerShard: Integer = _
@@ -86,11 +81,6 @@ trait ScanCommandParams extends {
     names = Array("--src-only"),
     description = "print only source JSON")
   val srcOnly = false
-
-  @Parameter(
-    names = Array("--src-id-pair"),
-    description = "print ID and source separated by TAB")
-  val srcIdPair = false
 }
 
 @Parameters(commandDescription = "Read search results using scroll")
@@ -113,16 +103,19 @@ object ScanCommand extends ScanCommandParams with Runnable {
     }
 
     if (!excludeFields.isEmpty || !includeFields.isEmpty) {
-      reqBuilder.addPartialField("partial",
+      reqBuilder.setFetchSource(
         includeFields.asScala.toArray,
         excludeFields.asScala.toArray
       )
     }
 
-    ScanCommand.fields.asScala.foreach(reqBuilder.addField)
-
-    EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins)._1.flatMap(_.getHits.getHits).foreach { h =>
-      println(hitToString(h, srcOnly, srcIdPair))
+    val (it, _) = EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins)
+      it.flatMap(_.getHits.getHits).foreach { hit =>
+      println(if (srcOnly) {
+        hit.getSourceAsString
+      } else {
+        s"${hit.getId}\t${hit.getSourceAsString}"
+      })
     }
 
     client.close()

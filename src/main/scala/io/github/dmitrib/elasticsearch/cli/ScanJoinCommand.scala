@@ -41,7 +41,8 @@ object ScanJoinCommand extends ScanCommandParams with Runnable {
 
     reqBuilder.addField(sourceField)
 
-    EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins)._1.map(_.getHits.getHits).flatMap { hits =>
+    val (it, _) = EsUtil.scan(client, reqBuilder, retryMax, requestTimeoutMins)
+    it.map(_.getHits.getHits).flatMap { hits =>
       val joinGroups = hits.map { (hit) =>
         hit.getFields.get(sourceField).getValue.toString
       }.grouped(joinRequestSize)
@@ -54,11 +55,15 @@ object ScanJoinCommand extends ScanCommandParams with Runnable {
           .setQuery(qb)
           .setSize(group.size)
 
-        ScanCommand.fields.asScala.foreach(joinReq.addField)
-
         joinReq.execute().actionGet().getHits.getHits
       }
-    }.foreach { h => println(hitToString(h, srcOnly, srcIdPair)) }
+    }.foreach { hit =>
+      println(if (srcOnly) {
+        hit.getSourceAsString
+      } else {
+        s"${hit.getId}\t${hit.getSourceAsString}"
+      })
+    }
 
     client.close()
   }

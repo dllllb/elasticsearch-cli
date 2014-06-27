@@ -1,9 +1,5 @@
 package io.github.dmitrib.elasticsearch.cli
 
-import com.fasterxml.jackson.databind.{SerializationFeature, MappingJsonFactory, ObjectMapper}
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import org.elasticsearch.search.SearchHit
-import java.io.StringWriter
 import com.beust.jcommander.{ParameterException, JCommander, Parameter}
 import java.util
 import scala.collection.JavaConverters._
@@ -94,50 +90,6 @@ object EsTool {
     client
   }
 
-  val mapper = new ObjectMapper
-  mapper.registerModule(DefaultScalaModule)
-  mapper.configure(SerializationFeature.WRITE_EMPTY_JSON_ARRAYS, false)
-  mapper.configure(SerializationFeature.WRITE_NULL_MAP_VALUES, false)
-
-  val jsonFactory = new MappingJsonFactory(mapper)
-
-  def hitToString(hit: SearchHit, srcOnly: Boolean = false, srcIdPair: Boolean = false) = {
-    val fields = hit.getFields.asScala
-    if (srcOnly) {
-      fields.get("partial").fold(hit.getSourceAsString) { field =>
-        mapper.writeValueAsString(field.getValue[AnyRef])
-      }
-    } else if (srcIdPair) {
-      val id = hit.getId
-      val source = fields.get("partial").fold(hit.getSourceAsString) { field =>
-        mapper.writeValueAsString(field.getValue[AnyRef])
-      }
-      s"$id\t$source"
-    } else {
-      val writer = new StringWriter()
-      val generator = jsonFactory.createGenerator(writer)
-
-      generator.writeStartObject()
-      generator.writeStringField("_id", hit.getId)
-      val source = fields.get("partial").fold(hit.getSource) { field =>
-        field.getValue[util.Map[String, AnyRef]]
-      }
-      if (source != null) {
-        generator.writeObjectField("_source", source)
-      }
-      val remainingFields = fields - "partial"
-      if (!remainingFields.isEmpty) {
-        generator.writeObjectField("fields", remainingFields.map { e =>
-          (e._1, e._2.getValue[AnyRef])
-        })
-      }
-      generator.writeEndObject()
-
-      generator.close()
-      writer.toString
-    }
-  }
-
   def main(args: Array[String]) {
     try {
       val jc = new JCommander
@@ -146,6 +98,7 @@ object EsTool {
       jc.addCommand("scan-join", ScanJoinCommand)
       jc.addCommand("batch-upload", BatchUploadCommand)
       jc.addCommand("search-by-input", SearchByInputCommand)
+      jc.addCommand("multi-get", MultiGetCommand)
 
       jc.parse(args: _*)
 

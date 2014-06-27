@@ -28,11 +28,6 @@ object SearchByInputCommand extends Runnable {
   var batchSize = 100
 
   @Parameter(
-    names = Array("-f", "--field"),
-    description = "A field to retrieve, can be specified multiple times; if no fields is supplied the whole document will be returned")
-   var fields: util.List[String] = new util.ArrayList[String]
-
-  @Parameter(
     names = Array("--file"),
     description = "A file to read newline-separated search attributes, system input will be used if no file is specified")
   var file: String = _
@@ -74,10 +69,9 @@ object SearchByInputCommand extends Runnable {
         .setSize(batch.size)
         .setTimeout(new TimeValue(requestTimeoutMins, TimeUnit.MINUTES))
       Option(kind).foreach(req.setTypes(_))
-      fields.asScala.foreach(req.addField)
 
       if (!excludeFields.isEmpty || !includeFields.isEmpty) {
-        req.addPartialField("partial",
+        req.setFetchSource(
           includeFields.asScala.toArray,
           excludeFields.asScala.toArray
         )
@@ -124,7 +118,11 @@ object SearchByInputCommand extends Runnable {
           if (finished)
             activeJobs = activeJobs - 1
           hits.getHits.foreach { hit =>
-            println(hitToString(hit, srcOnly))
+            println(if (srcOnly) {
+              hit.getSourceAsString
+            } else {
+              s"${hit.getId}\t${hit.getSourceAsString}"
+            })
           }
         case Right(e) =>
           throw e
