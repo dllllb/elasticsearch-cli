@@ -102,7 +102,7 @@ object MultiGetCommand extends Runnable {
           hits.getResponses.foreach { hit =>
             if (hit.isFailed) {
               println(hit.getFailure.getMessage)
-            } else {
+            } else if (hit.getResponse.isExists) {
               println(hitToString(hit.getId, hit.getResponse.getSourceAsString, srcOnly, srcIdTsv))
             }
           }
