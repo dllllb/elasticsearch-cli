@@ -57,7 +57,6 @@ object MultiGetCommand extends Runnable {
     val respQueue = new ArrayBlockingQueue[Either[MultiGetResponse, Throwable]](maxJobs)
 
     def executeBatch(batch: Seq[String]) {
-
       val req = client.prepareMultiGet()
       batch.foreach { id =>
         val item = new MultiGetRequest.Item(

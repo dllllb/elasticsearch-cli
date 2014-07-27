@@ -58,34 +58,12 @@ trait SearchByInputCommand extends Runnable with SearchByInputQuery {
     description = "number of requests to execute in parallel")
   val maxJobs = 1
 
-  @Parameter(
-    names = Array("--rejected-execution-delay"),
-    description = "delay after rejected execution (in milliseconds)")
-  val rejectedExecutionDelayMillis = 30
-
-  trait RetryListener extends ActionListener[SearchResponse] {
-    val request: SearchRequestBuilder
-
-    override def onFailure(e: Throwable) {
-      e.getCause match {
-        case ex: SearchPhaseExecutionException =>
-          if (ex.shardFailures().exists(_.failure().isInstanceOf[EsRejectedExecutionException])) {
-            Thread.sleep(rejectedExecutionDelayMillis)
-            request.execute(this)
-          }
-        case _ => fail(e)
-      }
-    }
-
-    def fail(e: Throwable)
-  }
-
   def run() {
     val stream = Option(file).fold(System.in)(new FileInputStream(_))
     val reader = new BufferedReader(new InputStreamReader(stream))
     val it = Iterator.continually(reader.readLine).takeWhile(_ != null).grouped(batchSize)
 
-    val respQueue = new ArrayBlockingQueue[Either[(SearchHits, Boolean), Throwable]](maxJobs)
+    val respQueue = new ArrayBlockingQueue[Either[(SearchHits, Boolean), Throwable]](maxJobs*2)
 
     def executeBatch(batch: Seq[String]) {
       val qb = query(batch)
@@ -102,10 +80,8 @@ trait SearchByInputCommand extends Runnable with SearchByInputQuery {
         )
       }
 
-      req.execute(new RetryListener {
-        val request = req
-
-        override def fail(e: Throwable) {
+      req.execute(new ActionListener[SearchResponse] {
+        override def onFailure(e: Throwable) {
           respQueue.put(Right(e))
         }
 
@@ -115,20 +91,19 @@ trait SearchByInputCommand extends Runnable with SearchByInputQuery {
             req.setSize(hits.totalHits().toInt - hits.getHits.size)
               .setFrom(hits.getHits.size)
 
-            req.execute(new RetryListener {
-              val request = req
-
+            req.execute(new ActionListener[SearchResponse] {
               override def onResponse(response: SearchResponse) {
                 respQueue.put(Left(response.getHits, true))
               }
 
-              override def fail(e: Throwable) {
+              override def onFailure(e: Throwable) {
                 respQueue.put(Right(e))
               }
             })
             respQueue.put(Left(hits, false))
+          } else {
+            respQueue.put(Left(hits, true))
           }
-          respQueue.put(Left(hits, true))
         }
       })
     }
