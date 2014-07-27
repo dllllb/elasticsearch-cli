@@ -14,7 +14,7 @@ import org.elasticsearch.search.SearchHits
 import scala.collection.JavaConverters._
 
 @Parameters(commandDescription = "Retrieve documents by field values")
-trait SearchByInputCommand extends Runnable {
+trait SearchByInputCommand extends Runnable with SearchByInputQuery {
   import EsTool._
 
   @Parameter(
@@ -62,8 +62,6 @@ trait SearchByInputCommand extends Runnable {
     names = Array("--rejected-execution-delay"),
     description = "delay after rejected execution (in milliseconds)")
   val rejectedExecutionDelayMillis = 30
-
-  def query(batch: Seq[String]): QueryBuilder
 
   trait RetryListener extends ActionListener[SearchResponse] {
     val request: SearchRequestBuilder
@@ -161,7 +159,7 @@ trait SearchByInputCommand extends Runnable {
   }
 }
 
-object SearchByInputQueryCommand extends SearchByInputCommand {
+trait SearchByInputQueryQuery extends SearchByInputCommand with SearchByInputQuery {
   override def query(batch: Seq[String]): QueryBuilder = {
     val qb = QueryBuilders.boolQuery()
     batch.foreach { attr => qb.should(QueryBuilders.termQuery(searchField, attr)) }
@@ -169,7 +167,13 @@ object SearchByInputQueryCommand extends SearchByInputCommand {
   }
 }
 
-object SearchByInputFilteredCommand extends SearchByInputCommand {
+object SearchByInputQueryCommand extends SearchByInputCommand with SearchByInputQueryQuery
+
+trait SearchByInputQuery {
+  def query(batch: Seq[String]): QueryBuilder
+}
+
+trait SearchByInputFilteredQuery extends SearchByInputCommand with SearchByInputQuery {
   def query(batch: Seq[String]) = {
     val fb = FilterBuilders.orFilter(
       batch.map { attr => FilterBuilders.termFilter(searchField, attr).cache(false) } :_*
@@ -178,3 +182,5 @@ object SearchByInputFilteredCommand extends SearchByInputCommand {
     qb
   }
 }
+
+object SearchByInputFilteredCommand extends SearchByInputCommand with SearchByInputFilteredQuery
