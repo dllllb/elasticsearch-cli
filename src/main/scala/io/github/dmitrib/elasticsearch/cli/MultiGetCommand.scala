@@ -112,7 +112,5 @@ object MultiGetCommand extends Runnable {
           throw new RuntimeException("timeout on waiting for response")
       }
     }
-
-    client.close()
   }
 }

@@ -118,6 +118,7 @@ object EsTool {
         jc.usage()
       } else {
         jc.getCommands.get(jc.getParsedCommand).getObjects.asScala.head.asInstanceOf[Runnable].run()
+        client.close()
       }
     } catch {
       case e: ParameterException =>

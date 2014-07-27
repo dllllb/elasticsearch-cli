@@ -122,7 +122,5 @@ object ScanCommand extends ScanCommandParams with Runnable {
       }
       println(hitToString(hit.getId, hit.getSourceAsString, srcOnly, srcIdTsv))
     }
-
-    client.close()
   }
 }
