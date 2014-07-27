@@ -108,7 +108,8 @@ object EsTool {
       jc.addCommand("scan", ScanCommand)
       jc.addCommand("scan-join", ScanJoinCommand)
       jc.addCommand("batch-upload", BatchUploadCommand)
-      jc.addCommand("search-by-input", SearchByInputCommand)
+      jc.addCommand("search-by-input", SearchByInputFilteredCommand)
+      jc.addCommand("search-by-input-query", SearchByInputQueryCommand)
       jc.addCommand("multi-get", MultiGetCommand)
 
       jc.parse(args: _*)
@@ -124,6 +125,7 @@ object EsTool {
         println("use --help to see the available options")
         System.exit(1)
       case t: Throwable =>
+        println(t.getMessage)
         t.printStackTrace()
         System.exit(1)
     }
