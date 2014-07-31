@@ -67,6 +67,7 @@ object BatchUploadCommand extends Runnable {
     while (activeJobs > 0 || it.hasNext) {
       while (activeJobs < maxJobs && it.hasNext) {
         executeBatch(it.next())
+        activeJobs = activeJobs + 1
       }
       val res = respQueue.poll(requestTimeoutMins*60+10, TimeUnit.SECONDS)
 
