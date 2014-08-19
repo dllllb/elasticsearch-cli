@@ -30,7 +30,7 @@ trait ScanCommandParams extends {
 
   lazy val hitsPerShard = Option(_hitsPerShard).fold {
     val resp = client.admin().indices().prepareStatus(index).get(TimeValue.timeValueMinutes(5))
-    val stats = resp.getIndex(index)
+    val (_, stats) = resp.getIndices.asScala.head
     val primaryShardCount = resp.getShards.count(_.getShardRouting.primary)
 
     val docCount = stats.getDocs.getMaxDoc
