@@ -14,7 +14,7 @@ import org.elasticsearch.search.SearchHits
 import scala.collection.JavaConverters._
 
 @Parameters(commandDescription = "Retrieve documents by field values")
-trait SearchByInputCommand extends Runnable with SearchByInputQuery {
+class SearchByInputCommand extends Runnable {
   import EsTool._
 
   @Parameter(
@@ -57,6 +57,20 @@ trait SearchByInputCommand extends Runnable with SearchByInputQuery {
     names = Array("--max-jobs"),
     description = "number of requests to execute in parallel")
   val maxJobs = 1
+
+  @Parameter(
+    names = Array("--query"),
+    description = "query for results filtering")
+  var queryString: String = _
+
+  def query(batch: Seq[String]) = {
+    val qb = QueryBuilders.boolQuery()
+    batch.foreach { attr => qb.should(QueryBuilders.termQuery(searchField, attr)) }
+
+    Option(queryString).map { qs =>
+      QueryBuilders.filteredQuery(qb, FilterBuilders.queryFilter(QueryBuilders.queryString(queryString)))
+    }.getOrElse(qb)
+  }
 
   def run() {
     val stream = Option(file).fold(System.in)(new FileInputStream(_))
@@ -134,28 +148,4 @@ trait SearchByInputCommand extends Runnable with SearchByInputQuery {
   }
 }
 
-trait SearchByInputQueryQuery extends SearchByInputCommand with SearchByInputQuery {
-  override def query(batch: Seq[String]): QueryBuilder = {
-    val qb = QueryBuilders.boolQuery()
-    batch.foreach { attr => qb.should(QueryBuilders.termQuery(searchField, attr)) }
-    qb
-  }
-}
-
-object SearchByInputQueryCommand extends SearchByInputCommand with SearchByInputQueryQuery
-
-trait SearchByInputQuery {
-  def query(batch: Seq[String]): QueryBuilder
-}
-
-trait SearchByInputFilteredQuery extends SearchByInputCommand with SearchByInputQuery {
-  def query(batch: Seq[String]) = {
-    val fb = FilterBuilders.orFilter(
-      batch.map { attr => FilterBuilders.termFilter(searchField, attr).cache(false) } :_*
-    ).cache(false)
-    val qb = QueryBuilders.filteredQuery(QueryBuilders.matchAllQuery(), fb)
-    qb
-  }
-}
-
-object SearchByInputFilteredCommand extends SearchByInputCommand with SearchByInputFilteredQuery
+object SearchByInputParallel extends SearchByInputCommand

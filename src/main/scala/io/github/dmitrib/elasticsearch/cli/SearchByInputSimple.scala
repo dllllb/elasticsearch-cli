@@ -8,7 +8,7 @@ import org.elasticsearch.common.unit.TimeValue
 
 import scala.collection.JavaConverters._
 
-object SearchByInputSimple extends SearchByInputCommand with SearchByInputFilteredQuery {
+object SearchByInputSimple extends SearchByInputCommand {
   override def run() {
     val stream = Option(file).fold(System.in)(new FileInputStream(_))
     val reader = new BufferedReader(new InputStreamReader(stream))

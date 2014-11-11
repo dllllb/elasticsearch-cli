@@ -108,9 +108,7 @@ object EsTool {
       jc.addCommand("scan", ScanCommand)
       jc.addCommand("scan-join", ScanJoinCommand)
       jc.addCommand("batch-upload", BatchUploadCommand)
-      jc.addCommand("search-by-input", SearchByInputFilteredCommand)
-      jc.addCommand("search-by-input-query", SearchByInputQueryCommand)
-      jc.addCommand("search-by-input-simple", SearchByInputSimple)
+      jc.addCommand("search-by-input", SearchByInputParallel)
       jc.addCommand("multi-get", MultiGetCommand)
 
       jc.parse(args: _*)
