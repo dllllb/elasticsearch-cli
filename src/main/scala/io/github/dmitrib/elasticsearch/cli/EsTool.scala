@@ -58,6 +58,11 @@ object EsTool {
       description = "Request timeout minutes")
   var requestTimeoutMins = 10
 
+  @Parameter(
+    names = Array("--ping-timeout-sec"),
+    description = "Ping timeout seconds")
+  var pingTimeoutSec = 15
+
   @Parameter(names = Array("--help"), help = true)
   var help: Boolean = _
 
@@ -65,6 +70,7 @@ object EsTool {
     val settings = ImmutableSettings.settingsBuilder
       .put("client.transport.ignore_cluster_name", true)
       .put("client.transport.sniff", nodeSniff)
+      .put("client.transport.ping_timeout", pingTimeoutSec)
       .build
 
     val discoveredEndpoints = Option(ec2tag).map(_.split(":")).collect {
@@ -81,7 +87,7 @@ object EsTool {
     }
 
     if (discoveredEndpoints.isEmpty && providedEndpoints.isEmpty) {
-      throw new ParameterException("no provided endpotints and can't discover EC2 endpoints")
+      throw new ParameterException("no provided endpoints and can't discover EC2 endpoints")
     }
 
     val client = new TransportClient(settings)
