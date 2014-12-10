@@ -70,7 +70,7 @@ object EsTool {
     val settings = ImmutableSettings.settingsBuilder
       .put("client.transport.ignore_cluster_name", true)
       .put("client.transport.sniff", nodeSniff)
-      .put("client.transport.ping_timeout", pingTimeoutSec)
+      .put("client.transport.ping_timeout", s"${pingTimeoutSec}s")
       .build
 
     val discoveredEndpoints = Option(ec2tag).map(_.split(":")).collect {
