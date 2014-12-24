@@ -29,12 +29,12 @@ trait ScanCommandParams extends {
   var _hitsPerShard: Integer = _
 
   lazy val hitsPerShard = Option(_hitsPerShard).fold {
-    val resp = client.admin().indices().prepareStatus(index).get(TimeValue.timeValueMinutes(5))
-    val (_, stats) = resp.getIndices.asScala.head
+    val resp = client.admin().indices().prepareStats(index).get(TimeValue.timeValueMinutes(5))
+    val stats = resp.getTotal
     val primaryShardCount = resp.getShards.count(_.getShardRouting.primary)
 
-    val docCount = stats.getDocs.getMaxDoc
-    val indexSize = stats.getPrimaryStoreSize.bytes()
+    val docCount = stats.getDocs.getCount
+    val indexSize = stats.getStore.getSizeInBytes
 
     val hps = (5000000D/(indexSize.toDouble/docCount*primaryShardCount)).toInt
     System.err.println(s"using $hps hits per shard")
